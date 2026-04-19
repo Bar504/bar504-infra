@@ -117,6 +117,10 @@ resource "aws_iam_group_policy" "readonly_self_service" {
           "iam:EnableMFADevice",
           "iam:DeactivateMFADevice",
           "iam:ResyncMFADevice",
+          "iam:CreateAccessKey",
+          "iam:DeleteAccessKey",
+          "iam:ListAccessKeys",
+          "iam:UpdateAccessKey",
         ]
         Resource = [
           "arn:aws:iam::*:user/$${aws:username}",
