@@ -3,11 +3,17 @@ locals {
     readonly = {
       policy_arns = ["arn:aws:iam::aws:policy/ReadOnlyAccess"]
     }
+    admin = {
+      policy_arns = ["arn:aws:iam::aws:policy/AdministratorAccess"]
+    }
   }
 
   iam_users = {
     Knu334 = {
       groups = ["readonly"]
+    }
+    shokun = {
+      groups = ["admin"]
     }
   }
 }
