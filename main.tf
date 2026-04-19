@@ -35,11 +35,6 @@ resource "aws_route53_record" "cert_validation" {
   allow_overwrite = true
 }
 
-resource "aws_acm_certificate_validation" "main" {
-  certificate_arn         = aws_acm_certificate.main.arn
-  validation_record_fqdns = [for r in aws_route53_record.cert_validation : r.fqdn]
-}
-
 # ---------------------------------------------------------------------------
 # ACM Certificate — us-east-1 (Virginia) for CloudFront
 # ---------------------------------------------------------------------------
@@ -69,10 +64,4 @@ resource "aws_route53_record" "cert_validation_cloudfront" {
   ttl             = 60
   records         = [each.value.record]
   allow_overwrite = true
-}
-
-resource "aws_acm_certificate_validation" "cloudfront" {
-  provider                = aws.us_east_1
-  certificate_arn         = aws_acm_certificate.cloudfront.arn
-  validation_record_fqdns = [for r in aws_route53_record.cert_validation_cloudfront : r.fqdn]
 }
