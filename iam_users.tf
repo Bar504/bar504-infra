@@ -48,6 +48,12 @@ resource "aws_iam_user_group_membership" "users" {
   groups   = [for g in each.value.groups : aws_iam_group.groups[g].name]
 }
 
+resource "aws_iam_user_login_profile" "users" {
+  for_each                = local.iam_users
+  user                    = aws_iam_user.users[each.key].name
+  password_reset_required = true
+}
+
 # ---------------------------------------------------------------------------
 # Admin role — assume this when administrative operations are needed
 # ---------------------------------------------------------------------------
