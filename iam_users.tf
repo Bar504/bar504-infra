@@ -58,7 +58,7 @@ resource "aws_iam_role" "admin" {
     Version = "2012-10-17"
     Statement = [{
       Effect    = "Allow"
-      Principal = { AWS = aws_iam_user.users["shokun"].arn }
+      Principal = { AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root" }
       Action    = "sts:AssumeRole"
       Condition = {
         BoolIfExists = {
@@ -74,10 +74,10 @@ resource "aws_iam_role_policy_attachment" "admin" {
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
 
-# Allow shokun to assume the admin role
-resource "aws_iam_user_policy" "shokun_assume_admin" {
-  name = "assume-admin-role"
-  user = aws_iam_user.users["shokun"].name
+# Allow all readonly group members to assume the admin role
+resource "aws_iam_group_policy" "readonly_assume_admin" {
+  name  = "assume-admin-role"
+  group = aws_iam_group.groups["readonly"].name
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -88,3 +88,5 @@ resource "aws_iam_user_policy" "shokun_assume_admin" {
     }]
   })
 }
+
+data "aws_caller_identity" "current" {}
