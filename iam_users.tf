@@ -95,4 +95,41 @@ resource "aws_iam_group_policy" "readonly_assume_admin" {
   })
 }
 
+# Allow users to manage their own password and MFA
+resource "aws_iam_group_policy" "readonly_self_service" {
+  name  = "self-service-iam"
+  group = aws_iam_group.groups["readonly"].name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:ChangePassword",
+          "iam:GetUser",
+          "iam:GetAccountPasswordPolicy",
+          "iam:GetAccountSummary",
+          "iam:ListMFADevices",
+          "iam:ListVirtualMFADevices",
+          "iam:CreateVirtualMFADevice",
+          "iam:DeleteVirtualMFADevice",
+          "iam:EnableMFADevice",
+          "iam:DeactivateMFADevice",
+          "iam:ResyncMFADevice",
+        ]
+        Resource = [
+          "arn:aws:iam::*:user/$${aws:username}",
+          "arn:aws:iam::*:mfa/$${aws:username}",
+        ]
+      },
+      {
+        Effect   = "Allow"
+        Action   = "iam:GetAccountPasswordPolicy"
+        Resource = "*"
+      },
+    ]
+  })
+}
+
 data "aws_caller_identity" "current" {}
