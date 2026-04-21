@@ -16,3 +16,9 @@ output "acm_certificate_arn_cloudfront" {
   description = "Use this ARN when attaching to CloudFront distributions"
   value       = aws_acm_certificate.cloudfront.arn
 }
+
+output "shared_secret" {
+  description = "VPS側に設定する事前共有キー"
+  value       = random_password.cf_shared_secret.result
+  sensitive   = true
+}

@@ -13,3 +13,13 @@ variable "github_org" {
   description = "GitHub organization or user name (e.g. Bar504)"
   default     = "Bar504"
 }
+
+variable "external_domain_name" {
+  type        = string
+  description = "CloudFrontの接続先ドメイン名"
+}
+
+variable "subdomain_name" {
+  type        = string
+  description = "CloudFrontに割り当てるサブドメイン"
+}
