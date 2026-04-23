@@ -1,7 +1,7 @@
 # ---------------------------------------------------------
 # 事前共有キーの生成
 # ---------------------------------------------------------
-resource "random_password" "tsu-chiman2_shared_secret" {
+resource "random_password" "tsu_chiman2_shared_secret" {
   length  = 32
   special = false
 
@@ -11,10 +11,10 @@ resource "random_password" "tsu-chiman2_shared_secret" {
 }
 
 # 事前共有キーをSSMパラメータストアに保存
-resource "aws_ssm_parameter" "tsu-chiman2_shared_secret" {
+resource "aws_ssm_parameter" "tsu_chiman2_shared_secret" {
   name  = "/tsu-chiman2/shared-secret"
   type  = "SecureString"
-  value = random_password.tsu-chiman2_shared_secret.result
+  value = random_password.tsu_chiman2_shared_secret.result
 }
 
 # ---------------------------------------------------------
@@ -33,7 +33,7 @@ data "aws_cloudfront_cache_policy" "caching_disabled" {
 # ---------------------------------------------------------
 # カスタムオリジンリクエストポリシーの作成
 # ---------------------------------------------------------
-resource "aws_cloudfront_origin_request_policy" "tsu-chiman2_policy" {
+resource "aws_cloudfront_origin_request_policy" "tsu_chiman2_policy" {
   name    = "Custom-AllViewer-With-Viewer-Address"
   comment = "Pass all headers/cookies/queries and include CloudFront-Viewer-Address"
 
@@ -79,10 +79,10 @@ resource "aws_cloudfront_function" "block_all" {
 # ---------------------------------------------------------
 # CloudFront ディストリビューション
 # ---------------------------------------------------------
-resource "aws_cloudfront_distribution" "tsu-chiman2" {
+resource "aws_cloudfront_distribution" "tsu_chiman2" {
   enabled             = true
   is_ipv6_enabled     = true
-  aliases             = [var.tsu-chiman2_domain_name]
+  aliases             = [var.tsu_chiman2_domain_name]
 
   # オリジンの設定
   origin {
@@ -99,7 +99,7 @@ resource "aws_cloudfront_distribution" "tsu-chiman2" {
     # 事前共有キーをカスタムヘッダーとして付与
     custom_header {
       name  = "Tsu-Chiman2-Shared-Secret"
-      value = random_password.tsu-chiman2_shared_secret.result
+      value = random_password.tsu_chiman2_shared_secret.result
     }
   }
 
@@ -126,7 +126,7 @@ resource "aws_cloudfront_distribution" "tsu-chiman2" {
     allowed_methods          = ["GET", "HEAD", "OPTIONS"]
     cached_methods           = ["GET", "HEAD"]
     cache_policy_id          = data.aws_cloudfront_cache_policy.caching_optimized.id
-    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.tsu-chiman2_policy.id
+    origin_request_policy_id = aws_cloudfront_origin_request_policy.tsu_chiman2_policy.id
   }
 
   # OAuth認証用パスのキャッシュ無効化設定
@@ -141,7 +141,7 @@ resource "aws_cloudfront_distribution" "tsu-chiman2" {
 
     # キャッシュを無効にし、クライアントのリクエスト内容をそのままオリジンへ渡す
     cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
-    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.tsu-chiman2_policy.id
+    origin_request_policy_id = aws_cloudfront_origin_request_policy.tsu_chiman2_policy.id
   }
 
   # API用パスのキャッシュ無効化設定
@@ -153,7 +153,7 @@ resource "aws_cloudfront_distribution" "tsu-chiman2" {
     cached_methods         = ["GET", "HEAD"]
 
     cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
-    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.tsu-chiman2_policy.id
+    origin_request_policy_id = aws_cloudfront_origin_request_policy.tsu_chiman2_policy.id
   }
 
   # Geo Restriction (日本以外からのアクセスを拒否)
@@ -175,14 +175,14 @@ resource "aws_cloudfront_distribution" "tsu-chiman2" {
 # ---------------------------------------------------------
 # Route 53 DNSレコードの作成
 # ---------------------------------------------------------
-resource "aws_route53_record" "tsu-chiman2" {
+resource "aws_route53_record" "tsu_chiman2" {
   zone_id = data.aws_route53_zone.main.zone_id
-  name    = var.tsu-chiman2_domain_name
+  name    = var.tsu_chiman2_domain_name
   type    = "A"
 
   alias {
-    name                   = aws_cloudfront_distribution.tsu-chiman2.domain_name
-    zone_id                = aws_cloudfront_distribution.tsu-chiman2.hosted_zone_id
+    name                   = aws_cloudfront_distribution.tsu_chiman2.domain_name
+    zone_id                = aws_cloudfront_distribution.tsu_chiman2.hosted_zone_id
     evaluate_target_health = false
   }
 }

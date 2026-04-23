@@ -19,7 +19,7 @@ variable "knu334_domain_name" {
   description = "Knu334ドメイン名"
 }
 
-variable "tsu-chiman2_domain_name" {
+variable "tsu_chiman2_domain_name" {
   type        = string
   description = "tsu-chiman2用サブドメイン"
 }
