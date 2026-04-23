@@ -14,12 +14,12 @@ variable "github_org" {
   default     = "Bar504"
 }
 
-variable "external_domain_name" {
+variable "knu334_domain_name" {
   type        = string
-  description = "CloudFrontの接続先ドメイン名"
+  description = "Knu334ドメイン名"
 }
 
-variable "subdomain_name" {
+variable "tsu-chiman2_domain_name" {
   type        = string
-  description = "CloudFrontに割り当てるサブドメイン"
+  description = "tsu-chiman2用サブドメイン"
 }

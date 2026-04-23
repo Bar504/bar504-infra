@@ -19,9 +19,28 @@ data "aws_cloudfront_cache_policy" "caching_disabled" {
   name = "Managed-CachingDisabled"
 }
 
-# 全てのヘッダー/Cookie/クエリをオリジンに渡す
-data "aws_cloudfront_origin_request_policy" "all_viewer" {
-  name = "Managed-AllViewer"
+# ---------------------------------------------------------
+# カスタムオリジンリクエストポリシーの作成
+# ---------------------------------------------------------
+resource "aws_cloudfront_origin_request_policy" "custom_policy" {
+  name    = "Custom-AllViewer-With-Viewer-Address"
+  comment = "Pass all headers/cookies/queries and include CloudFront-Viewer-Address"
+
+  cookies_config {
+    cookie_behavior = "all"
+  }
+  query_strings_config {
+    query_string_behavior = "all"
+  }
+  headers_config {
+    header_behavior = "allViewerAndWhitelistCloudFront"
+    headers {
+      items = [
+        "CloudFront-Viewer-Address",
+        "CloudFront-Viewer-Country", # 日本限定フィルタのデバッグ等にも便利です
+      ]
+    }
+  }
 }
 
 # ---------------------------------------------------------
@@ -40,17 +59,40 @@ data "aws_acm_certificate" "cf_cert" {
 }
 
 # ---------------------------------------------------------
+# 指定パス以外のアクセスをブロックするCloudFront Function
+# ---------------------------------------------------------
+resource "aws_cloudfront_function" "block_all" {
+  name    = "block-unauthorized-paths"
+  runtime = "cloudfront-js-2.0"
+  comment = "Block all requests by default"
+  publish = true
+  code    = <<-EOT
+    function handler(event) {
+        // 全てのリクエストに対して 403 Forbidden を即座に返す
+        return {
+            statusCode: 403,
+            statusDescription: 'Forbidden',
+            headers: {
+                'content-type': { value: 'text/plain' }
+            },
+            body: 'Access Denied: This path is not allowed.'
+        };
+    }
+  EOT
+}
+
+# ---------------------------------------------------------
 # CloudFront ディストリビューション
 # ---------------------------------------------------------
 resource "aws_cloudfront_distribution" "main" {
   enabled             = true
   is_ipv6_enabled     = true
-  aliases             = [var.subdomain_name]
+  aliases             = [var.tsu-chiman2_domain_name]
 
   # オリジンの設定
   origin {
-    domain_name = var.external_domain_name
-    origin_id   = "ExternalVPSOrigin"
+    domain_name = var.knu334_domain_name
+    origin_id   = "Knu334VPSOrigin"
 
     custom_origin_config {
       http_port              = 80
@@ -61,24 +103,30 @@ resource "aws_cloudfront_distribution" "main" {
 
     # 事前共有キーをカスタムヘッダーとして付与
     custom_header {
-      name  = "X-Shared-Secret"
+      name  = "Tsu-Chiman2-Shared-Secret"
       value = random_password.cf_shared_secret.result
     }
   }
 
   # デフォルトのキャッシュビヘイビア (静的アセットなどを想定)
   default_cache_behavior {
-    target_origin_id       = "ExternalVPSOrigin"
+    target_origin_id       = "Knu334VPSOrigin"
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD", "OPTIONS"]
     cached_methods         = ["GET", "HEAD"]
     cache_policy_id        = data.aws_cloudfront_cache_policy.caching_optimized.id
+
+    # ブロック用Functionを関連付け
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.block_all.arn
+    }
   }
 
   # OAuth認証用パスのキャッシュ無効化設定
   ordered_cache_behavior {
     path_pattern           = "/auth/*"
-    target_origin_id       = "ExternalVPSOrigin"
+    target_origin_id       = "Knu334VPSOrigin"
     viewer_protocol_policy = "redirect-to-https"
     
     # OAuthやAPIのPOST等を通すために全てのメソッドを許可
@@ -87,19 +135,19 @@ resource "aws_cloudfront_distribution" "main" {
 
     # キャッシュを無効にし、クライアントのリクエスト内容をそのままオリジンへ渡す
     cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
-    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer.id
+    origin_request_policy_id = aws_cloudfront_origin_request_policy.custom_policy.id
   }
 
   # API用パスのキャッシュ無効化設定
   ordered_cache_behavior {
     path_pattern           = "/api/*"
-    target_origin_id       = "ExternalVPSOrigin"
+    target_origin_id       = "Knu334VPSOrigin"
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods         = ["GET", "HEAD"]
 
     cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
-    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer.id
+    origin_request_policy_id = aws_cloudfront_origin_request_policy.custom_policy.id
   }
 
   # Geo Restriction (日本以外からのアクセスを拒否)
@@ -123,7 +171,7 @@ resource "aws_cloudfront_distribution" "main" {
 # ---------------------------------------------------------
 resource "aws_route53_record" "cf_record" {
   zone_id = data.aws_route53_zone.main.zone_id
-  name    = var.subdomain_name
+  name    = var.tsu-chiman2_domain_name
   type    = "A"
 
   alias {

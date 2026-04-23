@@ -18,7 +18,7 @@ output "acm_certificate_arn_cloudfront" {
 }
 
 output "shared_secret" {
-  description = "VPS側に設定する事前共有キー"
+  description = "事前共有キー"
   value       = random_password.cf_shared_secret.result
   sensitive   = true
 }
