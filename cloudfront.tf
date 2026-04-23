@@ -123,7 +123,7 @@ resource "aws_cloudfront_distribution" "main" {
   default_cache_behavior {
     target_origin_id       = "Knu334VPSOrigin"
     viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+    allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
     cache_policy_id        = data.aws_cloudfront_cache_policy.caching_optimized.id
 
