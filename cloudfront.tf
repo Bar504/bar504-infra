@@ -6,6 +6,13 @@ resource "random_password" "cf_shared_secret" {
   special = false
 }
 
+# 事前共有キーをSSMパラメータストアに保存
+resource "aws_ssm_parameter" "cf_shared_secret" {
+  name  = "/tsu-chiman2/cf-shared-secret" # パラメータ名
+  type  = "SecureString"            # 暗号化して保存
+  value = random_password.cf_shared_secret.result
+}
+
 # ---------------------------------------------------------
 # AWS管理ポリシーのデータソース取得
 # ---------------------------------------------------------
