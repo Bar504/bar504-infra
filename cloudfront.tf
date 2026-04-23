@@ -1,7 +1,7 @@
 # ---------------------------------------------------------
 # 事前共有キーの生成
 # ---------------------------------------------------------
-resource "random_password" "cf_shared_secret" {
+resource "random_password" "tsu-chiman2_shared_secret" {
   length  = 32
   special = false
 
@@ -11,10 +11,10 @@ resource "random_password" "cf_shared_secret" {
 }
 
 # 事前共有キーをSSMパラメータストアに保存
-resource "aws_ssm_parameter" "cf_shared_secret" {
-  name  = "/tsu-chiman2/cf-shared-secret" # パラメータ名
-  type  = "SecureString"            # 暗号化して保存
-  value = random_password.cf_shared_secret.result
+resource "aws_ssm_parameter" "tsu-chiman2_shared_secret" {
+  name  = "/tsu-chiman2/shared-secret"
+  type  = "SecureString"
+  value = random_password.tsu-chiman2_shared_secret.result
 }
 
 # ---------------------------------------------------------
@@ -33,7 +33,7 @@ data "aws_cloudfront_cache_policy" "caching_disabled" {
 # ---------------------------------------------------------
 # カスタムオリジンリクエストポリシーの作成
 # ---------------------------------------------------------
-resource "aws_cloudfront_origin_request_policy" "custom_policy" {
+resource "aws_cloudfront_origin_request_policy" "tsu-chiman2_policy" {
   name    = "Custom-AllViewer-With-Viewer-Address"
   comment = "Pass all headers/cookies/queries and include CloudFront-Viewer-Address"
 
@@ -48,25 +48,10 @@ resource "aws_cloudfront_origin_request_policy" "custom_policy" {
     headers {
       items = [
         "CloudFront-Viewer-Address",
-        "CloudFront-Viewer-Country", # 日本限定フィルタのデバッグ等にも便利です
+        "CloudFront-Viewer-Country",
       ]
     }
   }
-}
-
-# ---------------------------------------------------------
-# 既存リソースの取得 (データソース)
-# ---------------------------------------------------------
-# 1. 既存のRoute 53ホストゾーンを取得
-data "aws_route53_zone" "main" {
-  name = var.domain_name
-}
-
-# 2. us-east-1にあるACM証明書を取得
-data "aws_acm_certificate" "cf_cert" {
-  domain      = var.domain_name
-  types       = ["AMAZON_ISSUED"]
-  most_recent = true
 }
 
 # ---------------------------------------------------------
@@ -79,7 +64,6 @@ resource "aws_cloudfront_function" "block_all" {
   publish = true
   code    = <<-EOT
     function handler(event) {
-        // 全てのリクエストに対して 403 Forbidden を即座に返す
         return {
             statusCode: 403,
             statusDescription: 'Forbidden',
@@ -95,7 +79,7 @@ resource "aws_cloudfront_function" "block_all" {
 # ---------------------------------------------------------
 # CloudFront ディストリビューション
 # ---------------------------------------------------------
-resource "aws_cloudfront_distribution" "main" {
+resource "aws_cloudfront_distribution" "tsu-chiman2" {
   enabled             = true
   is_ipv6_enabled     = true
   aliases             = [var.tsu-chiman2_domain_name]
@@ -115,11 +99,11 @@ resource "aws_cloudfront_distribution" "main" {
     # 事前共有キーをカスタムヘッダーとして付与
     custom_header {
       name  = "Tsu-Chiman2-Shared-Secret"
-      value = random_password.cf_shared_secret.result
+      value = random_password.tsu-chiman2_shared_secret.result
     }
   }
 
-  # デフォルトのキャッシュビヘイビア (静的アセットなどを想定)
+  # デフォルトのキャッシュビヘイビア
   default_cache_behavior {
     target_origin_id       = "Knu334VPSOrigin"
     viewer_protocol_policy = "redirect-to-https"
@@ -134,6 +118,17 @@ resource "aws_cloudfront_distribution" "main" {
     }
   }
 
+  # 静的アセット用パスのキャッシュ設定
+  ordered_cache_behavior {
+    path_pattern             = "/assets/*"
+    target_origin_id         = "Knu334VPSOrigin"
+    viewer_protocol_policy   = "redirect-to-https"
+    allowed_methods          = ["GET", "HEAD", "OPTIONS"]
+    cached_methods           = ["GET", "HEAD"]
+    cache_policy_id          = data.aws_cloudfront_cache_policy.caching_optimized.id
+    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.tsu-chiman2_policy.id
+  }
+
   # OAuth認証用パスのキャッシュ無効化設定
   ordered_cache_behavior {
     path_pattern           = "/auth/*"
@@ -146,7 +141,7 @@ resource "aws_cloudfront_distribution" "main" {
 
     # キャッシュを無効にし、クライアントのリクエスト内容をそのままオリジンへ渡す
     cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
-    origin_request_policy_id = aws_cloudfront_origin_request_policy.custom_policy.id
+    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.tsu-chiman2_policy.id
   }
 
   # API用パスのキャッシュ無効化設定
@@ -158,7 +153,7 @@ resource "aws_cloudfront_distribution" "main" {
     cached_methods         = ["GET", "HEAD"]
 
     cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
-    origin_request_policy_id = aws_cloudfront_origin_request_policy.custom_policy.id
+    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.tsu-chiman2_policy.id
   }
 
   # Geo Restriction (日本以外からのアクセスを拒否)
@@ -169,9 +164,9 @@ resource "aws_cloudfront_distribution" "main" {
     }
   }
 
-  # 証明書設定 (デフォルトのCloudFront証明書を使用)
+  # 証明書設定
   viewer_certificate {
- acm_certificate_arn      = data.aws_acm_certificate.cf_cert.arn
+    acm_certificate_arn      = aws_acm_certificate.cloudfront.arn
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2021"
   }
@@ -180,14 +175,14 @@ resource "aws_cloudfront_distribution" "main" {
 # ---------------------------------------------------------
 # Route 53 DNSレコードの作成
 # ---------------------------------------------------------
-resource "aws_route53_record" "cf_record" {
+resource "aws_route53_record" "tsu-chiman2" {
   zone_id = data.aws_route53_zone.main.zone_id
   name    = var.tsu-chiman2_domain_name
   type    = "A"
 
   alias {
-    name                   = aws_cloudfront_distribution.main.domain_name
-    zone_id                = aws_cloudfront_distribution.main.hosted_zone_id
+    name                   = aws_cloudfront_distribution.tsu-chiman2.domain_name
+    zone_id                = aws_cloudfront_distribution.tsu-chiman2.hosted_zone_id
     evaluate_target_health = false
   }
 }
