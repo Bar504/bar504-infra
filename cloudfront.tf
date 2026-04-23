@@ -4,6 +4,10 @@
 resource "random_password" "cf_shared_secret" {
   length  = 32
   special = false
+
+  keepers = {
+    rotation_id = "v1" 
+  }
 }
 
 # 事前共有キーをSSMパラメータストアに保存
