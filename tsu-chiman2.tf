@@ -54,6 +54,28 @@ resource "aws_cloudfront_origin_request_policy" "tsu_chiman2_policy" {
   }
 }
 
+# 静的アセット用
+resource "aws_cloudfront_origin_request_policy" "tsu_chiman2_assets_policy" {
+  name    = "Custom-Assets-ViewerAddress-Only"
+  comment = "For /assets/*: no cookies, no query strings, forward CloudFront-Viewer-Address"
+
+  cookies_config {
+    cookie_behavior = "none"
+  }
+  query_strings_config {
+    query_string_behavior = "none"
+  }
+  headers_config {
+    header_behavior = "allViewerAndWhitelistCloudFront"
+    headers {
+      items = [
+        "CloudFront-Viewer-Address",
+        "CloudFront-Viewer-Country",
+      ]
+    }
+  }
+}
+
 # ---------------------------------------------------------
 # 指定パス以外のアクセスをブロックするCloudFront Function
 # ---------------------------------------------------------
@@ -118,15 +140,37 @@ resource "aws_cloudfront_distribution" "tsu_chiman2" {
     }
   }
 
+  # ルートのキャッシュ無効化設定
+  ordered_cache_behavior {
+    path_pattern             = "/"
+    target_origin_id         = "Knu334VPSOrigin"
+    viewer_protocol_policy   = "redirect-to-https"
+    allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods           = ["GET", "HEAD"]
+    cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
+    origin_request_policy_id = aws_cloudfront_origin_request_policy.tsu_chiman2_policy.id
+  }
+
+  # ServiceWorkerのキャッシュ無効化設定
+  ordered_cache_behavior {
+    path_pattern             = "/sw.js"
+    target_origin_id         = "Knu334VPSOrigin"
+    viewer_protocol_policy   = "redirect-to-https"
+    allowed_methods          = ["GET", "HEAD"]
+    cached_methods           = ["GET", "HEAD"]
+    cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
+    origin_request_policy_id = aws_cloudfront_origin_request_policy.tsu_chiman2_policy.id
+  }
+
   # 静的アセット用パスのキャッシュ設定
   ordered_cache_behavior {
     path_pattern             = "/assets/*"
     target_origin_id         = "Knu334VPSOrigin"
     viewer_protocol_policy   = "redirect-to-https"
-    allowed_methods          = ["GET", "HEAD", "OPTIONS"]
+    allowed_methods          = ["GET", "HEAD"]
     cached_methods           = ["GET", "HEAD"]
     cache_policy_id          = data.aws_cloudfront_cache_policy.caching_optimized.id
-    origin_request_policy_id = aws_cloudfront_origin_request_policy.tsu_chiman2_policy.id
+    origin_request_policy_id = aws_cloudfront_origin_request_policy.tsu_chiman2_assets_policy.id
   }
 
   # OAuth認証用パスのキャッシュ無効化設定
