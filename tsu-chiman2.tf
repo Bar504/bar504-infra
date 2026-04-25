@@ -81,7 +81,7 @@ resource "aws_cloudfront_origin_request_policy" "tsu_chiman2_assets_policy" {
     query_string_behavior = "none"
   }
   headers_config {
-    header_behavior = "allViewerAndWhitelistCloudFront"
+    header_behavior = "whitelist"
     headers {
       items = [
         # --- セキュリティ・通信 ---
