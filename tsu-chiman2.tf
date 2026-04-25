@@ -84,8 +84,23 @@ resource "aws_cloudfront_origin_request_policy" "tsu_chiman2_assets_policy" {
     header_behavior = "allViewerAndWhitelistCloudFront"
     headers {
       items = [
+        # --- セキュリティ・通信 ---
+        "Origin",
+        "Authorization",
+        "Accept",
+        "Accept-Language",
+        "Content-Type",
+
+        # --- ユーザー属性・分析 ---
+        "User-Agent",
+        "Referer",
+
+        # --- CORSプリフライト関連 ---
+        "Access-Control-Request-Method",
+        "Access-Control-Request-Headers",
+
+        # --- CloudFront特有 ---
         "CloudFront-Viewer-Address",
-        "CloudFront-Viewer-Country",
       ]
     }
   }
