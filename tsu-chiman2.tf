@@ -64,7 +64,6 @@ resource "aws_cloudfront_origin_request_policy" "tsu_chiman2_policy" {
 
         # --- CloudFront特有 ---
         "CloudFront-Viewer-Address",
-        "CloudFront-Viewer-Country",
       ]
     }
   }
