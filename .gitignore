@@ -4,8 +4,10 @@
 *.tfvars
 !*.tfvars.example
 .terraform.lock.hcl
+discord_notifier.zip
 crash.log
 override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+.DS_Store
