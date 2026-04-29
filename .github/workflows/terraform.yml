@@ -18,6 +18,8 @@ env:
   TF_VAR_github_org: ${{ vars.TF_VAR_github_org }}
   TF_VAR_knu334_domain_name: ${{ vars.TF_VAR_knu334_domain_name }}
   TF_VAR_tsu_chiman2_domain_name: ${{ vars.TF_VAR_tsu_chiman2_domain_name }}
+  TF_VAR_discord_webhook_url: ${{ secrets.TF_VAR_DISCORD_WEBHOOK_URL }}
+  TF_VAR_cloudfront_distribution_ids: ${{ vars.TF_VAR_cloudfront_distribution_ids }}
 
 jobs:
   terraform:
