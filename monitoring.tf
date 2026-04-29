@@ -394,10 +394,14 @@ resource "aws_cloudwatch_dashboard" "main" {
           view    = "timeSeries"
           period  = 300
           stat    = "Average"
-          metrics = flatten([for name, id in var.cloudfront_distribution_ids : [
-            ["AWS/CloudFront", "4xxErrorRate", "DistributionId", id, "Region", "Global", { label = "${name} 4xx" }],
-            ["AWS/CloudFront", "5xxErrorRate", "DistributionId", id, "Region", "Global", { label = "${name} 5xx" }],
-          ]])
+          metrics = concat(
+            [for name, id in var.cloudfront_distribution_ids :
+              ["AWS/CloudFront", "4xxErrorRate", "DistributionId", id, "Region", "Global", { label = "${name} 4xx" }]
+            ],
+            [for name, id in var.cloudfront_distribution_ids :
+              ["AWS/CloudFront", "5xxErrorRate", "DistributionId", id, "Region", "Global", { label = "${name} 5xx" }]
+            ]
+          )
         }
       },
       {
