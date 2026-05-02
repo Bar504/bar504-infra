@@ -70,4 +70,9 @@ variable "claude_proxy_ip_address" {
   type        = string
   description = "proxy.bar504.net が指すVPSのグローバルIPアドレス"
   default     = ""
+
+  validation {
+    condition     = var.claude_proxy_ip_address == "" || can(regex("^(\\d{1,3}\\.){3}\\d{1,3}$", var.claude_proxy_ip_address))
+    error_message = "claude_proxy_ip_address must be a valid IPv4 address or empty string."
+  }
 }

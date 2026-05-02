@@ -16,3 +16,8 @@ output "acm_certificate_arn_cloudfront" {
   description = "Use this ARN when attaching to CloudFront distributions"
   value       = aws_acm_certificate.cloudfront.arn
 }
+
+output "claude_proxy_fqdn" {
+  description = "FQDN of the Claude reverse proxy A record (empty if not configured)"
+  value       = length(aws_route53_record.claude_proxy) > 0 ? aws_route53_record.claude_proxy[0].fqdn : ""
+}
