@@ -69,4 +69,5 @@ variable "billing_alarm_threshold_usd" {
 variable "claude_proxy_ip_address" {
   type        = string
   description = "proxy.bar504.net が指すVPSのグローバルIPアドレス"
+  default     = ""
 }

@@ -3,6 +3,7 @@
 # ---------------------------------------------------------------------------
 
 resource "aws_route53_record" "claude_proxy" {
+  count   = var.claude_proxy_ip_address != "" ? 1 : 0
   zone_id = data.aws_route53_zone.main.zone_id
   name    = "proxy.${var.domain_name}"
   type    = "A"
