@@ -65,3 +65,15 @@ variable "billing_alarm_threshold_usd" {
   description = "Monthly estimated charges (USD) that triggers an alarm"
   default     = 10
 }
+
+variable "claude_proxy_ip_address" {
+  type        = string
+  description = "Knu334グローバルIPアドレス"
+  default     = ""
+
+  validation {
+    # Regex checks format only; out-of-range octets (e.g. 999.x.x.x) are caught by the AWS API at apply time.
+    condition     = var.claude_proxy_ip_address == "" || can(regex("^(\\d{1,3}\\.){3}\\d{1,3}$", var.claude_proxy_ip_address))
+    error_message = "claude_proxy_ip_address must be a valid IPv4 address or empty string."
+  }
+}
