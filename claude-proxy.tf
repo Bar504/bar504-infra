@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# Route 53 A Record — proxy.bar504.net (Claude reverse proxy on VPS)
+# Route 53 A Record — proxy.bar504.net
 # ---------------------------------------------------------------------------
 
 resource "aws_route53_record" "claude_proxy" {
