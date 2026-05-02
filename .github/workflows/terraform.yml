@@ -21,6 +21,7 @@ env:
   TF_VAR_tsu_chiman2_domain_name: ${{ vars.TF_VAR_tsu_chiman2_domain_name }}
   TF_VAR_discord_webhook_url: ${{ secrets.TF_VAR_DISCORD_WEBHOOK_URL }}
   TF_VAR_cloudfront_distribution_ids: ${{ vars.TF_VAR_cloudfront_distribution_ids || '{}' }}
+  TF_VAR_claude_proxy_ip_address: ${{ vars.TF_VAR_CLAUDE_PROXY_IP_ADDRESS }}
 
 jobs:
   terraform:
