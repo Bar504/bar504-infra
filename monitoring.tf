@@ -252,13 +252,13 @@ resource "aws_cloudwatch_metric_alarm" "r53_dns_queries" {
   provider            = aws.us_east_1
   alarm_name          = "route53-dns-query-spike"
   comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
+  evaluation_periods  = 2
   metric_name         = "DNSQueries"
   namespace           = "AWS/Route53"
   period              = 300
   statistic           = "Sum"
   threshold           = var.route53_dns_query_threshold
-  alarm_description   = "Route 53 DNS query spike — possible DNS amplification or reconnaissance"
+  alarm_description   = "Route 53 DNS query spike — possible DNS amplification or reconnaissance (>${var.route53_dns_query_threshold}/5min for 10min)"
   alarm_actions       = [aws_sns_topic.alerts_use1.arn]
   ok_actions          = [aws_sns_topic.alerts_use1.arn]
   treat_missing_data  = "notBreaching"

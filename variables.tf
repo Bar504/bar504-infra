@@ -51,7 +51,7 @@ variable "cloudfront_bandwidth_threshold_bytes" {
 variable "route53_dns_query_threshold" {
   type        = number
   description = "Route 53 DNS queries per 5 minutes that triggers an alarm"
-  default     = 500
+  default     = 1000
 }
 
 variable "acm_cert_expiry_days" {
