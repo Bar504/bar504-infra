@@ -509,6 +509,46 @@ resource "aws_apigatewayv2_route" "chiikawa" {
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
+# SSM Parameter Store — CI/CD が GitHub Secrets なしで値を参照できるようにする
+# CloudFormation Export と同等のパターン
+# ---------------------------------------------------------------------------
+resource "aws_ssm_parameter" "chiikawa_api_url" {
+  name  = "/chiikawa/api-url"
+  type  = "String"
+  value = aws_apigatewayv2_api.chiikawa.api_endpoint
+}
+
+resource "aws_ssm_parameter" "chiikawa_cognito_user_pool_id" {
+  name  = "/chiikawa/cognito-user-pool-id"
+  type  = "String"
+  value = tolist(data.aws_cognito_user_pools.chiikawa.ids)[0]
+}
+
+resource "aws_ssm_parameter" "chiikawa_cognito_client_id" {
+  name  = "/chiikawa/cognito-client-id"
+  type  = "String"
+  value = aws_cognito_user_pool_client.chiikawa.id
+}
+
+resource "aws_ssm_parameter" "chiikawa_cloudfront_url" {
+  name  = "/chiikawa/cloudfront-url"
+  type  = "String"
+  value = "https://chiikawa.${var.domain_name}"
+}
+
+resource "aws_ssm_parameter" "chiikawa_cloudfront_distribution_id" {
+  name  = "/chiikawa/cloudfront-distribution-id"
+  type  = "String"
+  value = aws_cloudfront_distribution.chiikawa.id
+}
+
+resource "aws_ssm_parameter" "chiikawa_static_bucket" {
+  name  = "/chiikawa/static-bucket"
+  type  = "String"
+  value = aws_s3_bucket.chiikawa_static.bucket
+}
+
+# ---------------------------------------------------------------------------
 # Outputs
 # ---------------------------------------------------------------------------
 output "chiikawa_cloudfront_url" {
