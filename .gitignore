@@ -5,6 +5,7 @@
 !*.tfvars.example
 .terraform.lock.hcl
 discord_notifier.zip
+# lambda_packages/ は Terraform 初回 apply 用プレースホルダー ZIP を含むためトラッキングする
 crash.log
 override.tf
 override.tf.json

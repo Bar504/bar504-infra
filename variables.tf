@@ -66,6 +66,12 @@ variable "billing_alarm_threshold_usd" {
   default     = 10
 }
 
+variable "chiikawa_family_id" {
+  type        = string
+  description = "ちいかわコレクション共有ファミリーID（UserCollection テーブルの PK）"
+  default     = "shoiwase"
+}
+
 variable "claude_proxy_ip_address" {
   type        = string
   description = "Knu334グローバルIPアドレス"
