@@ -77,3 +77,14 @@ variable "claude_proxy_ip_address" {
     error_message = "claude_proxy_ip_address must be a valid IPv4 address or empty string."
   }
 }
+
+variable "homehub_backup_noncurrent_retention_days" {
+  type        = number
+  description = "homehub バックアップで上書き・削除された旧バージョンを残す日数（Deep Archive の最低保管期間 180 日以上にする）"
+  default     = 365
+
+  validation {
+    condition     = var.homehub_backup_noncurrent_retention_days >= 180
+    error_message = "Deep Archive は 180 日未満で消すと早期削除料金がかかるため 180 以上にする。"
+  }
+}

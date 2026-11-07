@@ -16,3 +16,7 @@ output "acm_certificate_arn_cloudfront" {
   description = "Use this ARN when attaching to CloudFront distributions"
   value       = aws_acm_certificate.cloudfront.arn
 }
+
+output "homehub_backup_bucket" {
+  value = aws_s3_bucket.homehub_backup.bucket
+}
