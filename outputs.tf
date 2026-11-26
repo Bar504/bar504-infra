@@ -20,3 +20,8 @@ output "acm_certificate_arn_cloudfront" {
 output "homehub_backup_bucket" {
   value = aws_s3_bucket.homehub_backup.bucket
 }
+
+output "keiba_site_url" {
+  description = "友人向け競馬予想サイトの URL（S3 静的ウェブサイト・HTTP）"
+  value       = "http://${aws_s3_bucket_website_configuration.keiba_site.website_endpoint}"
+}
