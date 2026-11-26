@@ -1,8 +1,11 @@
 # ---------------------------------------------------------------------------
-# 競馬予想の静的サイト（友人向け・S3 静的ウェブサイトホスティング）
-#   homehub の cron（金夜・土夜）が週末の重賞の予想 JSON と HTML を aws s3 sync で送る。
-#   中身は予想の確率と買い方だけで個人情報なし。URL がバケット名から決まるので、名前に乱数を入れて推測されにくくしている。
-#   HTTP のみ（CloudFront は使わない構成をユーザーが選択）。
+# 競馬予想の静的サイト（友人向け・S3 ＋ CloudFront）
+#   homehub の cron（金夜、土日の朝・昼・夜）が週末の重賞の予想 JSON と HTML を aws s3 sync で送る。
+#   中身は予想の確率と買い方だけで個人情報なし。
+#   2026-11-26: netkeiba 利用規約（第14条: 不特定多数が知りうる状態に置かない）に合わせ、
+#   CloudFront ＋ Basic 認証の友人限定に変更。S3 は非公開にして CloudFront（OAC）からだけ読む。
+#   認証情報はコードにも state にも置かず、CloudFront KeyValueStore にキー "basic" として CLI で入れる
+#   （keiba リポジトリの scripts/set-site-password.sh）。未設定のあいだは全員 401。
 # ---------------------------------------------------------------------------
 
 resource "aws_s3_bucket" "keiba_site" {
@@ -16,23 +19,13 @@ resource "aws_s3_bucket_ownership_controls" "keiba_site" {
   }
 }
 
-# ACL での公開は禁止し、下のバケットポリシー（GetObject のみ）でだけ公開する
+# 公開はしない（CloudFront の OAC 経由だけ）
 resource "aws_s3_bucket_public_access_block" "keiba_site" {
   bucket                  = aws_s3_bucket.keiba_site.id
   block_public_acls       = true
   ignore_public_acls      = true
-  block_public_policy     = false
-  restrict_public_buckets = false
-}
-
-resource "aws_s3_bucket_website_configuration" "keiba_site" {
-  bucket = aws_s3_bucket.keiba_site.id
-  index_document {
-    suffix = "index.html"
-  }
-  error_document {
-    key = "index.html"
-  }
+  block_public_policy     = true
+  restrict_public_buckets = true
 }
 
 resource "aws_s3_bucket_policy" "keiba_site" {
@@ -42,16 +35,19 @@ resource "aws_s3_bucket_policy" "keiba_site" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Sid       = "PublicRead"
+      Sid       = "CloudFrontOnly"
       Effect    = "Allow"
-      Principal = "*"
+      Principal = { Service = "cloudfront.amazonaws.com" }
       Action    = "s3:GetObject"
       Resource  = "${aws_s3_bucket.keiba_site.arn}/*"
+      Condition = {
+        StringEquals = { "AWS:SourceArn" = aws_cloudfront_distribution.keiba_site.arn }
+      }
     }]
   })
 }
 
-# 古いレースの JSON がたまり続けないよう 180 日で消す（一覧に出るのは直近2週間だけ）
+# 古いレースの JSON がたまり続けないよう 180 日で消す（一覧に出るのは直近1ヶ月だけ）
 resource "aws_s3_bucket_lifecycle_configuration" "keiba_site" {
   bucket = aws_s3_bucket.keiba_site.id
 
@@ -115,4 +111,94 @@ resource "aws_iam_user_policy" "keiba_site_publisher" {
       },
     ]
   })
+}
+
+# ---------------------------------------------------------------------------
+# CloudFront ＋ Basic 認証
+# ---------------------------------------------------------------------------
+resource "aws_cloudfront_origin_access_control" "keiba_site" {
+  name                              = "keiba-site"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
+# 認証情報の置き場所。値（キー "basic" = "Basic <base64(ユーザー:パスワード)>"）は Terraform では入れない
+resource "aws_cloudfront_key_value_store" "keiba_site_auth" {
+  name    = "keiba-site-auth"
+  comment = "Basic auth credential for keiba site (set via CLI, not in Terraform)"
+}
+
+resource "aws_cloudfront_function" "keiba_site_auth" {
+  name                         = "keiba-site-basic-auth"
+  runtime                      = "cloudfront-js-2.0"
+  comment                      = "Basic auth for keiba site (credential in KeyValueStore)"
+  publish                      = true
+  key_value_store_associations = [aws_cloudfront_key_value_store.keiba_site_auth.arn]
+  code                         = <<-EOT
+    import cf from 'cloudfront';
+    const kvs = cf.kvs();
+
+    function deny() {
+      return {
+        statusCode: 401,
+        statusDescription: 'Unauthorized',
+        headers: { 'www-authenticate': { value: 'Basic realm="keiba", charset="UTF-8"' } }
+      };
+    }
+
+    async function handler(event) {
+      const req = event.request;
+      const got = req.headers.authorization ? req.headers.authorization.value : '';
+      let want = '';
+      try {
+        want = await kvs.get('basic');
+      } catch (e) {
+        return deny();   // 未設定なら誰も通さない
+      }
+      if (!want || got !== want) {
+        return deny();
+      }
+      return req;
+    }
+  EOT
+}
+
+resource "aws_cloudfront_distribution" "keiba_site" {
+  enabled             = true
+  is_ipv6_enabled     = true
+  comment             = "keiba site (friends only, basic auth)"
+  default_root_object = "index.html"
+  price_class         = "PriceClass_200"
+
+  origin {
+    domain_name              = aws_s3_bucket.keiba_site.bucket_regional_domain_name
+    origin_id                = "keiba-site-s3"
+    origin_access_control_id = aws_cloudfront_origin_access_control.keiba_site.id
+  }
+
+  default_cache_behavior {
+    target_origin_id       = "keiba-site-s3"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    # オリジンの Cache-Control に従う（HTML/JS は5分、data/ は no-cache を publish.sh が付ける）
+    cache_policy_id = data.aws_cloudfront_cache_policy.caching_optimized.id
+    compress        = true
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.keiba_site_auth.arn
+    }
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
 }

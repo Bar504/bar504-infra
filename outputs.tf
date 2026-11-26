@@ -21,7 +21,12 @@ output "homehub_backup_bucket" {
   value = aws_s3_bucket.homehub_backup.bucket
 }
 
+output "keiba_site_auth_kvs_arn" {
+  description = "競馬サイトの認証情報を入れる CloudFront KeyValueStore"
+  value       = aws_cloudfront_key_value_store.keiba_site_auth.arn
+}
+
 output "keiba_site_url" {
-  description = "友人向け競馬予想サイトの URL（S3 静的ウェブサイト・HTTP）"
-  value       = "http://${aws_s3_bucket_website_configuration.keiba_site.website_endpoint}"
+  description = "友人向け競馬予想サイトの URL（CloudFront・HTTPS・Basic 認証）"
+  value       = "https://${aws_cloudfront_distribution.keiba_site.domain_name}/"
 }
