@@ -36,7 +36,7 @@ All resources currently live in the root module (no sub-modules yet). As scope e
 | `iam_users.tf` | IAM users |
 | `cloudtrail.tf` | CloudTrail trail + CloudWatch metric filters for security events |
 | `monitoring.tf` | CloudWatch alarms, SNS topics, Discord notifier Lambda, dashboard |
-| `claude-proxy.tf` | Claude API proxy (Lambda + Route 53 A record for proxy.bar504.net) |
+| `claude-proxy.tf` | Route 53 A record for proxy.bar504.net (the proxy itself runs on a VPS) |
 | `tsu-chiman2.tf` | tsu-chiman2 サービス用リソース |
 | `keiba-site.tf` | 友人向け競馬予想の静的サイト（S3 静的ウェブサイト・GetObject のみ公開）と、homehub からのアップロード専用 IAM ユーザー `keiba-site-publisher`（アクセスキーは Terraform 外で発行） |
 | `homehub-backup.tf` | 自宅サーバー homehub の写真バックアップ先（S3 Deep Archive バケット + 書き込み専用 IAM ユーザー `homehub-backup`。アクセスキーは Terraform 外で発行） |
