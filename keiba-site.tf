@@ -6,6 +6,8 @@
 #   CloudFront ＋ Basic 認証の友人限定に変更。S3 は非公開にして CloudFront（OAC）からだけ読む。
 #   認証情報はコードにも state にも置かず、CloudFront KeyValueStore にキー "basic" として CLI で入れる
 #   （keiba リポジトリの scripts/set-site-password.sh）。未設定のあいだは全員 401。
+#   2026-11-28: 毎回のログインが面倒なので、Basic 認証が通ったら 30 日有効のクッキー（keiba_auth）を発行し、
+#   以後はクッキーだけで通す。クッキーの値は認証情報の SHA-256 なので、パスワードを変えると全員分が無効になる。
 # ---------------------------------------------------------------------------
 
 resource "aws_s3_bucket" "keiba_site" {
@@ -137,7 +139,13 @@ resource "aws_cloudfront_function" "keiba_site_auth" {
   key_value_store_associations = [aws_cloudfront_key_value_store.keiba_site_auth.arn]
   code                         = <<-EOT
     import cf from 'cloudfront';
+    import crypto from 'crypto';
     const kvs = cf.kvs();
+
+    // ログインを覚えるクッキー。値は認証情報から作るので、パスワードを変えると全員分が無効になる
+    function token(want) {
+      return crypto.createHash('sha256').update('keiba-remember:' + want).digest('hex');
+    }
 
     function deny() {
       return {
@@ -150,16 +158,55 @@ resource "aws_cloudfront_function" "keiba_site_auth" {
     async function handler(event) {
       const req = event.request;
       const got = req.headers.authorization ? req.headers.authorization.value : '';
+      const ck = req.cookies.keiba_auth ? req.cookies.keiba_auth.value : '';
       let want = '';
       try {
         want = await kvs.get('basic');
       } catch (e) {
         return deny();   // 未設定なら誰も通さない
       }
-      if (!want || got !== want) {
+      if (!want || (got !== want && ck !== token(want))) {
         return deny();
       }
       return req;
+    }
+  EOT
+}
+
+# Basic 認証が通ったレスポンスに、ログインを 30 日覚えるクッキーを付ける（すでに有効なクッキーがあれば付けない）
+resource "aws_cloudfront_function" "keiba_site_remember" {
+  name                         = "keiba-site-remember-login"
+  runtime                      = "cloudfront-js-2.0"
+  comment                      = "Set remember-login cookie after basic auth (keiba site)"
+  publish                      = true
+  key_value_store_associations = [aws_cloudfront_key_value_store.keiba_site_auth.arn]
+  code                         = <<-EOT
+    import cf from 'cloudfront';
+    import crypto from 'crypto';
+    const kvs = cf.kvs();
+
+    function token(want) {
+      return crypto.createHash('sha256').update('keiba-remember:' + want).digest('hex');
+    }
+
+    async function handler(event) {
+      const req = event.request;
+      const res = event.response;
+      const got = req.headers.authorization ? req.headers.authorization.value : '';
+      const ck = req.cookies.keiba_auth ? req.cookies.keiba_auth.value : '';
+      let want = '';
+      try {
+        want = await kvs.get('basic');
+      } catch (e) {
+        return res;
+      }
+      if (want && got === want && ck !== token(want)) {
+        res.cookies.keiba_auth = {
+          value: token(want),
+          attributes: 'Max-Age=2592000; Path=/; Secure; HttpOnly; SameSite=Lax'
+        };
+      }
+      return res;
     }
   EOT
 }
@@ -189,6 +236,11 @@ resource "aws_cloudfront_distribution" "keiba_site" {
     function_association {
       event_type   = "viewer-request"
       function_arn = aws_cloudfront_function.keiba_site_auth.arn
+    }
+
+    function_association {
+      event_type   = "viewer-response"
+      function_arn = aws_cloudfront_function.keiba_site_remember.arn
     }
   }
 
